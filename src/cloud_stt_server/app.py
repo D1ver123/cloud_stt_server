@@ -121,12 +121,15 @@ async def stt_stream(websocket: WebSocket) -> None:
     receive_task = None
     event_task = None
     sender_task = None
+    current_stream_final_text: str | None = None
 
     async def send_event(event: dict) -> None:
+        nonlocal current_stream_final_text
         if event.get("type") == "stt.partial":
             session.partial_text = str(event.get("text", ""))
         elif event.get("type") == "stt.final":
             session.final_text = str(event.get("text", ""))
+            current_stream_final_text = session.final_text
             event = _attach_intent_result(event, session)
         await websocket.send_json(event)
 
@@ -160,6 +163,7 @@ async def stt_stream(websocket: WebSocket) -> None:
             hotword_id=session.asr.hotword_id,
         )
         async with asr:
+            asr_stream_active = True
             sender_task = asyncio.create_task(_send_asr_audio_worker(asr, queue))
             receive_task = asyncio.create_task(websocket.receive())
             event_task = asyncio.create_task(event_queue.get())
@@ -197,6 +201,10 @@ async def stt_stream(websocket: WebSocket) -> None:
                             rolling.append(pcm)
                             continue
                         preroll = rolling.read_all()
+                        if not asr_stream_active:
+                            await asr.start()
+                            asr_stream_active = True
+                            current_stream_final_text = None
                         if preroll:
                             await queue.push(preroll)
                             rolling.clear()
@@ -204,9 +212,10 @@ async def stt_stream(websocket: WebSocket) -> None:
                         if state.speech_end:
                             await _wait_asr_queue_drained(queue, sender_task)
                             text = await asr.stop()
-                            if text and text != session.final_text:
+                            asr_stream_active = False
+                            if text and text != current_stream_final_text:
                                 await send_event(SttFinalMessage(text=text).model_dump())
-                            break
+                            continue
                     except (BufferError, RuntimeError, ValueError) as exc:
                         await send_event(ErrorMessage(message=str(exc)).model_dump())
                         break
@@ -219,7 +228,8 @@ async def stt_stream(websocket: WebSocket) -> None:
                     if payload.get("type") == "commit":
                         await _wait_asr_queue_drained(queue, sender_task)
                         text = await asr.stop()
-                        if text and text != session.final_text:
+                        asr_stream_active = False
+                        if text and text != current_stream_final_text:
                             await send_event(SttFinalMessage(text=text).model_dump())
                         break
                     await send_event(

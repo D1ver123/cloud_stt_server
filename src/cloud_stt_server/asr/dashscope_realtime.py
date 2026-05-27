@@ -73,6 +73,8 @@ class DashScopeRealtimeAsr(RealtimeAsr):
 
         dashscope.api_key = self.config.api_key
         callback = _RecognitionCallback(self).instance
+        self._completed = asyncio.Event()
+        self._final_text = ""
         self._recognition = Recognition(
             model=self.config.model,
             callback=callback,

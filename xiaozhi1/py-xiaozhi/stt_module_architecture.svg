@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1780" height="1320" viewBox="0 0 1780 1320">
+  <defs>
+    <style>
+      .bg { fill: #f7f8fb; }
+      .title { font: 700 30px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #1b2430; }
+      .subtitle { font: 15px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #5b6675; }
+      .section { fill: #ffffff; stroke: #d6dce6; stroke-width: 1.2; rx: 8; }
+      .section-title { font: 700 17px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #2a3544; }
+      .box { fill: #ffffff; stroke: #aeb8c8; stroke-width: 1.3; rx: 7; }
+      .box-audio { fill: #eef7ff; stroke: #5aa0d8; }
+      .box-protocol { fill: #f2f8f0; stroke: #6daf62; }
+      .box-server { fill: #fff5e8; stroke: #d28a2e; }
+      .box-output { fill: #f7f1ff; stroke: #8c6ac6; }
+      .box-note { fill: #fff; stroke: #c9d2df; stroke-dasharray: 5 4; }
+      .box-title { font: 700 16px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #1e2a36; }
+      .box-text { font: 13px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #354052; }
+      .small { font: 12px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #647084; }
+      .code { font: 12px Consolas, "Courier New", monospace; fill: #26313f; }
+      .label { font: 12px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #4c5868; }
+      .warn { fill: #8a5a00; }
+      .badge-os { fill: #e8f5ee; stroke: #5e9d78; stroke-width: 1; rx: 4; }
+      .badge-dev { fill: #fff0f0; stroke: #c86767; stroke-width: 1; rx: 4; }
+      .badge-ext { fill: #fff2df; stroke: #c68632; stroke-width: 1; rx: 4; }
+      .badge-text { font: 700 11px "Microsoft YaHei", "Segoe UI", Arial, sans-serif; fill: #2f3a47; }
+      .arrow { stroke: #445064; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .arrow-soft { stroke: #79869a; stroke-width: 1.8; fill: none; marker-end: url(#arrowSoft); }
+      .arrow-dashed { stroke: #79869a; stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; marker-end: url(#arrowSoft); }
+      .divider { stroke: #ccd4df; stroke-width: 1; stroke-dasharray: 4 4; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#445064"/>
+    </marker>
+    <marker id="arrowSoft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#79869a"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1780" height="1320"/>
+
+  <text class="title" x="70" y="58">py-xiaozhi 语音转文字模块真实架构图</text>
+  <text class="subtitle" x="70" y="88">范围：从麦克风输入设备到客户端最终拿到 STT 文本。结论：普通语音转文字由服务端完成；客户端负责采集、Opus 编码、发送、接收 JSON(type=stt) 并分发。</text>
+
+  <rect class="box-note" x="1240" y="32" width="470" height="78"/>
+  <text class="box-title warn" x="1260" y="58">真实性边界</text>
+  <text class="box-text" x="1260" y="82">本地 Sherpa-ONNX：仅 KWS 唤醒词</text>
+  <text class="box-text" x="1260" y="102">STT 文本：服务端 JSON type=stt</text>
+
+  <rect class="badge-os" x="70" y="105" width="50" height="22"/>
+  <text class="badge-text" x="82" y="120">开源</text>
+  <text class="small" x="128" y="121">上游 py-xiaozhi 已有链路</text>
+  <rect class="badge-dev" x="300" y="105" width="50" height="22"/>
+  <text class="badge-text" x="312" y="120">开发</text>
+  <text class="small" x="358" y="121">本地新增或在开源基础上修改</text>
+  <rect class="badge-ext" x="610" y="105" width="50" height="22"/>
+  <text class="badge-text" x="622" y="120">外部</text>
+  <text class="small" x="668" y="121">不在当前客户端项目内实现</text>
+
+  <!-- Section 1 -->
+  <rect class="section" x="55" y="135" width="1670" height="255"/>
+  <text class="section-title" x="75" y="165">1. 输入设备与本地音频转换</text>
+
+  <rect class="box box-audio" x="85" y="195" width="250" height="122"/>
+  <rect class="badge-os" x="270" y="230" width="46" height="20"/>
+  <text class="badge-text" x="281" y="244">开源</text>
+  <text class="box-title" x="105" y="224">config / 自动选设备</text>
+  <text class="box-text" x="105" y="250">读取麦克风配置</text>
+  <text class="box-text" x="105" y="272">无配置则自动选择</text>
+  <text class="box-text" x="105" y="294">得到设备采样参数</text>
+
+  <rect class="box box-audio" x="385" y="195" width="250" height="122"/>
+  <rect class="badge-os" x="570" y="230" width="46" height="20"/>
+  <text class="badge-text" x="581" y="244">开源</text>
+  <text class="box-title" x="405" y="224">AudioPlugin.setup()</text>
+  <text class="box-text" x="405" y="250">创建 AudioCodec</text>
+  <text class="box-text" x="405" y="272">打开输入流和编码器</text>
+  <text class="box-text" x="405" y="294">给其他插件使用</text>
+
+  <rect class="box box-audio" x="685" y="195" width="250" height="122"/>
+  <rect class="badge-os" x="870" y="230" width="46" height="20"/>
+  <text class="badge-text" x="881" y="244">开源</text>
+  <text class="box-title" x="705" y="224">sounddevice.InputStream</text>
+  <text class="box-text" x="705" y="250">持续读取麦克风</text>
+  <text class="box-text" x="705" y="272">按设备格式采集</text>
+  <text class="box-text" x="705" y="294">每帧交给 _input_callback</text>
+
+  <rect class="box box-audio" x="985" y="195" width="300" height="122"/>
+  <rect class="badge-os" x="1200" y="230" width="46" height="20"/>
+  <text class="badge-text" x="1211" y="244">开源</text>
+  <text class="box-title" x="1005" y="224">AudioCodec._input_callback()</text>
+  <text class="box-text" x="1005" y="250">转为单声道</text>
+  <text class="box-text" x="1005" y="272">转为 16kHz</text>
+  <text class="box-text" x="1005" y="294">生成 int16 音频帧</text>
+
+  <rect class="box box-audio" x="1335" y="195" width="250" height="122"/>
+  <rect class="badge-os" x="1520" y="230" width="46" height="20"/>
+  <text class="badge-text" x="1531" y="244">开源</text>
+  <text class="box-title" x="1355" y="224">Opus 编码</text>
+  <text class="box-text" x="1355" y="250">PCM 压缩为 Opus</text>
+  <text class="box-text" x="1355" y="272">服务端要求格式</text>
+  <text class="box-text" x="1355" y="294">交给发送回调</text>
+
+  <path class="arrow" d="M335 256 H385"/>
+  <path class="arrow" d="M635 256 H685"/>
+  <path class="arrow" d="M935 256 H985"/>
+  <path class="arrow" d="M1285 256 H1335"/>
+
+  <rect class="box box-note" x="100" y="335" width="690" height="38"/>
+  <text class="small" x="120" y="358">可选支路：同一份 PCM 同步给唤醒词检测器。</text>
+  <path class="arrow-dashed" d="M1135 317 C1135 354, 840 354, 790 354"/>
+
+  <rect class="box box-note" x="850" y="335" width="575" height="38"/>
+  <text class="small" x="870" y="358">AEC 可选；当前 config: AEC_OPTIONS.ENABLED=false。</text>
+
+  <!-- Section 2 -->
+  <rect class="section" x="55" y="420" width="1670" height="250"/>
+  <text class="section-title" x="75" y="450">2. 发送门控、协议传输与服务端 STT</text>
+
+  <rect class="box box-protocol" x="85" y="482" width="285" height="122"/>
+  <rect class="badge-os" x="305" y="516" width="46" height="20"/>
+  <text class="badge-text" x="316" y="530">开源</text>
+  <text class="box-title" x="105" y="511">AudioPlugin._on_encoded_audio()</text>
+  <text class="box-text" x="105" y="537">收到一帧 Opus</text>
+  <text class="box-text" x="105" y="559">切回主事件循环</text>
+  <text class="box-text" x="105" y="581">创建发送任务</text>
+
+  <rect class="box box-protocol" x="420" y="482" width="300" height="122"/>
+  <rect class="badge-os" x="655" y="516" width="46" height="20"/>
+  <text class="badge-text" x="666" y="530">开源</text>
+  <text class="box-title" x="440" y="511">是否上传这一帧 Opus</text>
+  <text class="box-text" x="440" y="537">通道未打开：丢弃</text>
+  <text class="box-text" x="440" y="559">TTS 尾音保护期：丢弃</text>
+  <text class="box-text" x="440" y="581">允许收音：调用 send_audio</text>
+
+  <rect class="box box-protocol" x="770" y="482" width="280" height="122"/>
+  <rect class="badge-os" x="985" y="516" width="46" height="20"/>
+  <text class="badge-text" x="996" y="530">开源</text>
+  <text class="box-title" x="790" y="511">允许收音的状态</text>
+  <text class="box-text" x="790" y="537">LISTENING：允许</text>
+  <text class="box-text" x="790" y="559">SPEAKING + 实时 AEC：允许</text>
+  <text class="box-text" x="790" y="581">其他状态：不上传</text>
+
+  <rect class="box box-protocol" x="1100" y="452" width="240" height="84"/>
+  <rect class="badge-os" x="1275" y="486" width="46" height="20"/>
+  <text class="badge-text" x="1286" y="500">开源</text>
+  <text class="box-title" x="1120" y="481">WebsocketProtocol</text>
+  <text class="box-text" x="1120" y="507">发送音频帧</text>
+  <text class="box-text" x="1120" y="529">WebSocket binary</text>
+
+  <rect class="box box-protocol" x="1100" y="562" width="240" height="84"/>
+  <rect class="badge-os" x="1275" y="596" width="46" height="20"/>
+  <text class="badge-text" x="1286" y="610">开源</text>
+  <text class="box-title" x="1120" y="591">MqttProtocol</text>
+  <text class="box-text" x="1120" y="617">加密音频帧</text>
+  <text class="box-text" x="1120" y="639">通过 UDP 发送</text>
+
+  <rect class="box box-server" x="1400" y="482" width="275" height="122"/>
+  <rect class="badge-ext" x="1615" y="516" width="46" height="20"/>
+  <text class="badge-text" x="1626" y="530">外部</text>
+  <text class="box-title" x="1420" y="511">服务端语音识别</text>
+  <text class="box-text" x="1420" y="537">接收 Opus</text>
+  <text class="box-text" x="1420" y="559">识别为文字</text>
+  <text class="box-text" x="1420" y="581">返回 STT JSON</text>
+
+  <path class="arrow" d="M1585 317 C1585 385, 227 385, 227 482"/>
+  <path class="arrow" d="M370 543 H420"/>
+  <path class="arrow" d="M720 543 H770"/>
+  <path class="arrow" d="M1050 543 C1072 543, 1072 494, 1100 494"/>
+  <path class="arrow" d="M1050 543 C1072 543, 1072 604, 1100 604"/>
+  <path class="arrow" d="M1340 494 H1400"/>
+  <path class="arrow" d="M1340 604 H1400"/>
+
+  <rect class="box box-note" x="85" y="620" width="470" height="34"/>
+  <text class="small" x="105" y="642">LISTENING 入口：手动、自动对话、唤醒词。</text>
+
+  <!-- Section 3 -->
+  <rect class="section" x="55" y="705" width="1670" height="425"/>
+  <text class="section-title" x="75" y="735">3. 客户端接收 STT JSON、输出文本并进入开发路由模块</text>
+
+  <rect class="box box-server" x="85" y="775" width="255" height="122"/>
+  <rect class="badge-ext" x="275" y="809" width="46" height="20"/>
+  <text class="badge-text" x="286" y="823">外部</text>
+  <text class="box-title" x="105" y="804">服务端返回</text>
+  <text class="code" x="105" y="831">{"type":"stt",</text>
+  <text class="code" x="105" y="853"> "text":"..."}</text>
+  <text class="box-text" x="105" y="875">服务端生成</text>
+
+  <rect class="box box-protocol" x="390" y="748" width="280" height="96"/>
+  <rect class="badge-os" x="605" y="782" width="46" height="20"/>
+  <text class="badge-text" x="616" y="796">开源</text>
+  <text class="box-title" x="410" y="777">WebSocket 接收</text>
+  <text class="box-text" x="410" y="803">收到文本 JSON</text>
+  <text class="box-text" x="410" y="825">触发 JSON 回调</text>
+
+  <rect class="box box-protocol" x="390" y="874" width="280" height="96"/>
+  <rect class="badge-os" x="605" y="908" width="46" height="20"/>
+  <text class="badge-text" x="616" y="922">开源</text>
+  <text class="box-title" x="410" y="903">MQTT 接收</text>
+  <text class="box-text" x="410" y="929">收到 MQTT JSON</text>
+  <text class="box-text" x="410" y="951">触发 JSON 回调</text>
+
+  <rect class="box box-output" x="720" y="775" width="270" height="122"/>
+  <rect class="badge-dev" x="925" y="809" width="46" height="20"/>
+  <text class="badge-text" x="936" y="823">开发</text>
+  <text class="box-title" x="740" y="804">Application._on_incoming_json()</text>
+  <text class="box-text" x="740" y="830">识别消息类型</text>
+  <text class="box-text" x="740" y="852">维护 TTS 状态</text>
+  <text class="box-text" x="740" y="874">广播给插件</text>
+
+  <rect class="box box-output" x="1040" y="775" width="295" height="122"/>
+  <rect class="badge-dev" x="1270" y="809" width="46" height="20"/>
+  <text class="badge-text" x="1281" y="823">开发</text>
+  <text class="box-title" x="1060" y="804">SttForwarderPlugin</text>
+  <text class="box-text" x="1060" y="830">只处理 STT 消息</text>
+  <text class="box-text" x="1060" y="852">取出识别文字</text>
+  <text class="box-text" x="1060" y="874">保存并通知订阅方</text>
+
+  <rect class="box box-output" x="1390" y="755" width="270" height="82"/>
+  <rect class="badge-dev" x="1595" y="789" width="46" height="20"/>
+  <text class="badge-text" x="1606" y="803">开发</text>
+  <text class="box-title" x="1410" y="784">程序内 STT 输出</text>
+  <text class="box-text" x="1410" y="810">读取最近文本</text>
+  <text class="box-text" x="1410" y="832">队列 / 回调订阅</text>
+
+  <rect class="box box-output" x="1390" y="865" width="270" height="112"/>
+  <rect class="badge-dev" x="1595" y="899" width="46" height="20"/>
+  <text class="badge-text" x="1606" y="913">开发</text>
+  <text class="box-title" x="1410" y="894">意图识别 + Adapter</text>
+  <text class="box-text" x="1410" y="920">判断文本指令意图</text>
+  <text class="box-text" x="1410" y="942">确定目标机器个体</text>
+  <text class="box-text" x="1410" y="964">路由为设备命令</text>
+
+  <rect class="box box-output" x="1390" y="1010" width="270" height="82"/>
+  <rect class="badge-os" x="1595" y="1044" width="46" height="20"/>
+  <text class="badge-text" x="1606" y="1058">开源</text>
+  <text class="box-title" x="1410" y="1039">具体机器个体</text>
+  <text class="box-text" x="1410" y="1065">ThingManager.invoke</text>
+  <text class="box-text" x="1410" y="1087">调用目标 Thing 方法</text>
+
+  <rect class="box box-output" x="1040" y="940" width="295" height="82"/>
+  <rect class="badge-os" x="1270" y="974" width="46" height="20"/>
+  <text class="badge-text" x="1281" y="988">开源</text>
+  <text class="box-title" x="1060" y="969">UI 文本输出</text>
+  <text class="box-text" x="1060" y="995">接收 STT JSON</text>
+  <text class="box-text" x="1060" y="1017">刷新显示文本</text>
+
+  <path class="arrow" d="M340 836 C362 836, 362 796, 390 796"/>
+  <path class="arrow" d="M340 836 C362 836, 362 922, 390 922"/>
+  <path class="arrow" d="M670 796 C695 796, 695 836, 720 836"/>
+  <path class="arrow" d="M670 922 C695 922, 695 836, 720 836"/>
+  <path class="arrow" d="M990 836 H1040"/>
+  <path class="arrow" d="M1335 816 H1390"/>
+  <path class="arrow" d="M1525 837 V865"/>
+  <path class="arrow" d="M1525 977 V1010"/>
+  <path class="arrow-soft" d="M990 852 C1010 915, 1015 981, 1040 981"/>
+
+  <line class="divider" x1="75" y1="1150" x2="1705" y2="1150"/>
+
+  <text class="section-title" x="75" y="1182">源码依据</text>
+  <text class="small" x="75" y="1207">依据 1: AudioCodec 输入链路见 src/audio_codecs/audio_codec.py:328, 363, 405, 574, 593。</text>
+  <text class="small" x="75" y="1229">依据 2: 发送门控见 src/plugins/audio.py:39, 193, 208, 224, 231；状态判断见 src/application.py:414。</text>
+  <text class="small" x="75" y="1251">依据 3: 协议收发见 src/protocols/websocket_protocol.py:372, 409；src/protocols/mqtt_protocol.py:430, 530。</text>
+  <text class="small" x="75" y="1273">依据 4: Application 接入 SttForwarderPlugin，新增 src/plugins/stt_forwarder.py；上游插件目录无 stt_forwarder.py。</text>
+  <text class="small" x="75" y="1295">设计标注：意图识别 + Adapter 是新增开发模块设计，放在 STT 文本输出之后，路由到 ThingManager / Thing 个体。</text>
+</svg>
