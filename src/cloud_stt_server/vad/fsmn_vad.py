@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+import threading
 
 import numpy as np
 
@@ -16,6 +17,10 @@ class FsmnVadState:
 
 
 ModelFactory = Callable[[FsmnVadConfig], object]
+
+
+_MODEL_CACHE: dict[FsmnVadConfig, object] = {}
+_MODEL_CACHE_LOCK = threading.Lock()
 
 
 class FsmnVadTracker:
@@ -94,12 +99,17 @@ class FsmnVadTracker:
 
 
 def _create_funasr_model(config: FsmnVadConfig):
+    with _MODEL_CACHE_LOCK:
+        cached = _MODEL_CACHE.get(config)
+        if cached is not None:
+            return cached
+
     try:
         from funasr import AutoModel
     except ImportError as exc:
         raise RuntimeError("FunASR is required. Install with: pip install funasr") from exc
 
-    return AutoModel(
+    model = AutoModel(
         model=config.model,
         device=config.device,
         ncpu=config.ncpu,
@@ -107,6 +117,13 @@ def _create_funasr_model(config: FsmnVadConfig):
         disable_pbar=True,
         log_level="ERROR",
     )
+    with _MODEL_CACHE_LOCK:
+        _MODEL_CACHE.setdefault(config, model)
+        return _MODEL_CACHE[config]
+
+
+def preload_fsmn_vad_model(config: FsmnVadConfig) -> None:
+    _create_funasr_model(config)
 
 
 def _pcm_s16le_to_float32(pcm: bytes) -> np.ndarray:

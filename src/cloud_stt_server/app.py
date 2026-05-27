@@ -21,7 +21,7 @@ from cloud_stt_server.protocol import (
     SttFinalMessage,
 )
 from cloud_stt_server.sessions import SessionStore
-from cloud_stt_server.vad.fsmn_vad import FsmnVadTracker
+from cloud_stt_server.vad.fsmn_vad import FsmnVadTracker, preload_fsmn_vad_model
 
 
 config = AppConfig()
@@ -34,6 +34,15 @@ command_parser = RuleCommandParser()
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def preload_models() -> None:
+    try:
+        await asyncio.to_thread(preload_fsmn_vad_model, config.fsmn_vad)
+        logger.info("FSMN-VAD model preloaded")
+    except Exception:
+        logger.exception("FSMN-VAD model preload failed")
 
 
 @app.post("/stt/v1/sessions", response_model=CreateSessionResponse)
