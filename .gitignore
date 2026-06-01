@@ -9,4 +9,5 @@ venv/
 *.log
 *.tmp
 *.wav
+*.pcm
 src/*.egg-info/

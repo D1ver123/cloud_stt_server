@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 
-APP_NAME = "xiaozhi-cloud-stt"
+APP_NAME = "cloud-stt"
 PREFERENCES_FILE = "client_preferences.json"
 
 

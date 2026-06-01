@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "xiaozhi-cloud-stt-client"
+name = "cloud-stt"
 version = "0.1.0"
-description = "Client-side audio capture and streaming pipeline for xiaozhi-cloud-stt"
+description = "Client and server for realtime cloud STT with local wake-word gating"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.110",
@@ -23,6 +23,9 @@ dependencies = [
 [project.optional-dependencies]
 audio = [
     "sounddevice>=0.4.6",
+]
+wake-word = [
+    "sherpa-onnx>=1.10.0",
 ]
 opus = [
     "opuslib==3.0.1",

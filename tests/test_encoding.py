@@ -16,10 +16,10 @@ def test_pcm_encoder_is_still_available_for_fallback():
     assert encoder.encode(b"\x00\x00") == b"\x00\x00"
 
 
-def test_opus_candidates_do_not_depend_on_reference_project():
+def test_opus_candidates_only_include_existing_paths():
     candidates = _candidate_paths(None)
 
-    assert all("xiaozhi1" not in str(path) for path in candidates)
+    assert all(path.exists() for path in candidates)
 
 
 def test_opus_encoder_decoder_roundtrip_when_libopus_available():

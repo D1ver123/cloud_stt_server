@@ -132,7 +132,7 @@ def test_command_response_uses_partner_output_shape():
             {
                 "english_domain": "robot_control",
                 "slots": {"matched_text": "向前"},
-                "source": "xiaozhi_cloud_stt",
+                "source": "cloud_stt",
                 "intent": "move_forward",
                 "feed": {"image": [], "video": [], "audio": []},
                 "answer": "向前走",

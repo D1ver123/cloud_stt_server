@@ -26,7 +26,7 @@ from cloud_stt_server.vad.fsmn_vad import FsmnVadTracker, preload_fsmn_vad_model
 
 config = AppConfig()
 sessions = SessionStore(ttl_seconds=300)
-app = FastAPI(title="xiaozhi-cloud-stt")
+app = FastAPI(title="cloud-stt")
 logger = logging.getLogger(__name__)
 command_parser = RuleCommandParser()
 

@@ -33,6 +33,21 @@ class AsrConfig:
 
 
 @dataclass(frozen=True)
+class WakeWordConfig:
+    enabled: bool = False
+    model_dir: str = "models/wake_word"
+    num_threads: int = 4
+    provider: str = "cpu"
+    max_active_paths: int = 2
+    keywords_score: float = 1.8
+    keywords_threshold: float = 0.2
+    num_trailing_blanks: int = 1
+    detection_cooldown_seconds: float = 1.5
+    idle_timeout_seconds: float = 60.0
+    interrupt_texts: tuple[str, ...] = ("退出", "停下", "停止", "结束")
+
+
+@dataclass(frozen=True)
 class UserSemanticsConfig:
     client_id: str = "工匠汇"
     enterprise_id: str | None = None
@@ -54,6 +69,7 @@ class ClientConfig:
     audio: AudioConfig = AudioConfig()
     vad: VadConfig = VadConfig()
     asr: AsrConfig = AsrConfig()
+    wake_word: WakeWordConfig = WakeWordConfig()
     intent: IntentConfig = IntentConfig()
     queue_max_frames: int = 200
     send_commit_on_stop: bool = True

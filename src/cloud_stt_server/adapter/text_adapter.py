@@ -35,7 +35,7 @@ def command_to_partner_response(
     command: RobotCommand,
     *,
     english_domain: str = "robot_control",
-    source: str = "xiaozhi_cloud_stt",
+    source: str = "cloud_stt",
 ) -> IntentRecognitionResponse:
     if not command.recognized:
         return IntentRecognitionResponse(
