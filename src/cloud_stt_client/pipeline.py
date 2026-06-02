@@ -12,6 +12,7 @@ from cloud_stt_client.protocol import (
     SttWebSocketClient,
     websocket_url_with_session,
 )
+from cloud_stt_client.recognition_log import ConversationRecognitionLog
 
 
 EventHandler = Callable[[dict], None]
@@ -45,6 +46,7 @@ class VoiceSttClient:
             self.config.asr,
             self.config.intent,
         )
+        recognition_log = self._create_recognition_log(session.session_id)
         self._emit_timing(on_timing, "session_created", started_at)
         websocket_url = self._websocket_url_for_session(session)
         encoder = create_encoder(self.config.audio)
@@ -65,6 +67,7 @@ class VoiceSttClient:
                     timing_state,
                     stop_on_final=stop_on_final,
                     on_final=lambda event: final_event.set(),
+                    recognition_log=recognition_log,
                 )
             )
             try:
@@ -114,7 +117,14 @@ class VoiceSttClient:
                         if deadline and asyncio.get_running_loop().time() >= deadline:
                             break
             finally:
-                await self._finish(ws, event_task, on_timing, started_at)
+                await self._finish(
+                    ws,
+                    event_task,
+                    on_timing,
+                    started_at,
+                    on_event=on_event,
+                    recognition_log=recognition_log,
+                )
 
     async def _run_with_wake_word(
         self,
@@ -128,6 +138,7 @@ class VoiceSttClient:
         stop_event: asyncio.Event | None = None
         final_event: asyncio.Event | None = None
         event_task: asyncio.Task | None = None
+        recognition_log: ConversationRecognitionLog | None = None
         ws: SttWebSocketClient | None = None
         first_audio_sent = False
         idle_deadline: float | None = None
@@ -176,7 +187,7 @@ class VoiceSttClient:
                                 f"encoder init after wake failed: {exc}"
                             ) from exc
                         self._emit_timing(on_timing, "encoder_ready", started_at)
-                        ws, event_task, stop_event, final_event = (
+                        ws, event_task, stop_event, final_event, recognition_log = (
                             await self._open_stream_after_wake(
                                 on_event,
                                 on_timing,
@@ -208,10 +219,13 @@ class VoiceSttClient:
                         event_task,
                         on_timing,
                         started_at,
+                        on_event,
+                        recognition_log,
                     )
                     ws = None
                     encoder = None
                     event_task = None
+                    recognition_log = None
                     stop_event = None
                     final_event = None
                     idle_deadline = None
@@ -225,10 +239,13 @@ class VoiceSttClient:
                         event_task,
                         on_timing,
                         started_at,
+                        on_event,
+                        recognition_log,
                     )
                     ws = None
                     encoder = None
                     event_task = None
+                    recognition_log = None
                     stop_event = None
                     final_event = None
                     idle_deadline = None
@@ -245,10 +262,13 @@ class VoiceSttClient:
                         event_task,
                         on_timing,
                         started_at,
+                        on_event,
+                        recognition_log,
                     )
                     ws = None
                     encoder = None
                     event_task = None
+                    recognition_log = None
                     stop_event = None
                     final_event = None
                     idle_deadline = None
@@ -268,10 +288,13 @@ class VoiceSttClient:
                         event_task,
                         on_timing,
                         started_at,
+                        on_event,
+                        recognition_log,
                     )
                     ws = None
                     encoder = None
                     event_task = None
+                    recognition_log = None
                     stop_event = None
                     final_event = None
                     idle_deadline = None
@@ -279,7 +302,14 @@ class VoiceSttClient:
                     self._emit_timing(on_timing, "wake_word_waiting", started_at)
 
         if ws is not None and event_task is not None:
-            await self._close_open_stream(ws, event_task, on_timing, started_at)
+            await self._close_open_stream(
+                ws,
+                event_task,
+                on_timing,
+                started_at,
+                on_event,
+                recognition_log,
+            )
         self._emit_timing(on_timing, "finished", started_at)
 
     async def _open_stream_after_wake(
@@ -288,7 +318,13 @@ class VoiceSttClient:
         on_timing: TimingHandler | None,
         started_at: float,
         on_activity: ActivityHandler | None = None,
-    ) -> tuple[SttWebSocketClient, asyncio.Task, asyncio.Event, asyncio.Event]:
+    ) -> tuple[
+        SttWebSocketClient,
+        asyncio.Task,
+        asyncio.Event,
+        asyncio.Event,
+        ConversationRecognitionLog,
+    ]:
         try:
             session = await RestSessionClient(self.config.rest_base_url).create_session(
                 self.config.audio,
@@ -298,12 +334,13 @@ class VoiceSttClient:
             )
         except Exception as exc:
             raise RuntimeError(f"session creation after wake failed: {exc}") from exc
+        recognition_log = self._create_recognition_log(session.session_id)
         self._emit_timing(on_timing, "session_created", started_at)
         websocket_url = self._websocket_url_for_session(session)
         ws = SttWebSocketClient(websocket_url)
         try:
             await ws.__aenter__()
-        except Exception:
+        except Exception as exc:
             with contextlib.suppress(Exception):
                 await ws.__aexit__(None, None, None)
             raise RuntimeError(
@@ -324,9 +361,10 @@ class VoiceSttClient:
                 stop_on_final=False,
                 on_final=lambda event: final_event.set(),
                 on_activity=on_activity,
+                recognition_log=recognition_log,
             )
         )
-        return ws, event_task, stop_event, final_event
+        return ws, event_task, stop_event, final_event, recognition_log
 
     async def _close_open_stream(
         self,
@@ -334,6 +372,8 @@ class VoiceSttClient:
         event_task: asyncio.Task,
         on_timing: TimingHandler | None,
         started_at: float,
+        on_event: EventHandler | None = None,
+        recognition_log: ConversationRecognitionLog | None = None,
     ) -> None:
         try:
             await self._finish(
@@ -341,6 +381,8 @@ class VoiceSttClient:
                 event_task,
                 on_timing,
                 started_at,
+                on_event=on_event,
+                recognition_log=recognition_log,
                 emit_finished=False,
             )
         finally:
@@ -362,6 +404,7 @@ class VoiceSttClient:
             self.config.asr,
             self.config.intent,
         )
+        recognition_log = self._create_recognition_log(session.session_id)
         self._emit_timing(on_timing, "session_created", started_at)
         websocket_url = self._websocket_url_for_session(session)
         encoder = create_encoder(self.config.audio)
@@ -381,6 +424,7 @@ class VoiceSttClient:
                     timing_state,
                     stop_on_final=stop_on_final,
                     on_final=None,
+                    recognition_log=recognition_log,
                 )
             )
             try:
@@ -400,7 +444,14 @@ class VoiceSttClient:
                     if realtime:
                         await asyncio.sleep(self.config.audio.frame_duration_ms / 1000)
             finally:
-                await self._finish(ws, event_task, on_timing, started_at)
+                await self._finish(
+                    ws,
+                    event_task,
+                    on_timing,
+                    started_at,
+                    on_event=on_event,
+                    recognition_log=recognition_log,
+                )
 
     async def _receive_events(
         self,
@@ -413,6 +464,7 @@ class VoiceSttClient:
         stop_on_final: bool,
         on_final: FinalEventHandler | None,
         on_activity: ActivityHandler | None = None,
+        recognition_log: ConversationRecognitionLog | None = None,
     ) -> None:
         async for event in ws.events():
             if not timing_state.get("first_server_event"):
@@ -428,8 +480,11 @@ class VoiceSttClient:
                 on_activity()
             if on_event is not None:
                 on_event(event)
-            if event.get("type") == "stt.final" and on_final is not None:
-                on_final(event)
+            if event.get("type") == "stt.final":
+                if recognition_log is not None:
+                    recognition_log.record_final(event)
+                if on_final is not None:
+                    on_final(event)
             if event.get("type") == "error" or (
                 stop_on_final and event.get("type") == "stt.final"
             ):
@@ -479,6 +534,14 @@ class VoiceSttClient:
     def _wake_word_idle_timeout_seconds(self) -> float:
         return self.config.wake_word.idle_timeout_seconds
 
+    def _create_recognition_log(self, session_id: str) -> ConversationRecognitionLog:
+        return ConversationRecognitionLog(
+            self.config.recognition_log.directory,
+            session_id=session_id,
+            enabled=self.config.recognition_log.enabled,
+            write_empty=self.config.recognition_log.write_empty,
+        )
+
     def _create_wake_word_detector(
         self,
         on_event: EventHandler | None,
@@ -500,6 +563,8 @@ class VoiceSttClient:
         event_task: asyncio.Task,
         on_timing: TimingHandler | None,
         started_at: float,
+        on_event: EventHandler | None = None,
+        recognition_log: ConversationRecognitionLog | None = None,
         emit_finished: bool = True,
     ) -> None:
         if self.config.send_commit_on_stop:
@@ -512,8 +577,30 @@ class VoiceSttClient:
             event_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await event_task
+        self._write_recognition_log(on_event, recognition_log)
         if emit_finished:
             self._emit_timing(on_timing, "finished", started_at)
+
+    def _write_recognition_log(
+        self,
+        on_event: EventHandler | None,
+        recognition_log: ConversationRecognitionLog | None,
+    ) -> None:
+        if recognition_log is None:
+            return
+        try:
+            path = recognition_log.write()
+        except Exception as exc:
+            self._emit_error(on_event, f"write recognition log failed: {exc}")
+            return
+        if path is not None and on_event is not None:
+            on_event(
+                {
+                    "type": "client.recognition_log",
+                    "path": str(path),
+                    "result_count": len(recognition_log.results),
+                }
+            )
 
     def _emit_timing(
         self,

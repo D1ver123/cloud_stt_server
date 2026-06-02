@@ -57,7 +57,7 @@ Content-Type: application/json
     "pre_roll_ms": 200
   },
   "asr": {
-    "provider": "dashscope"
+    "provider": "doubao"
   },
   "intent": {
     "enabled": true,
@@ -111,7 +111,7 @@ signed 16-bit little-endian
 ASR 启动：
 
 ```json
-{"type":"asr.start","provider":"dashscope"}
+{"type":"asr.start","provider":"doubao"}
 ```
 
 中间结果：
@@ -166,7 +166,7 @@ ASR 启动：
 | `only 16000 Hz audio is supported` | 采样率错误 | 重采样到 16kHz |
 | `only mono audio is supported` | 声道数错误 | 转单声道 |
 | `audio chunk queue is full` | 服务端 ASR 发送阻塞 | 结束当前会话，稍后重试 |
-| `Missing required environment variable: DASHSCOPE_API_KEY` | 服务端未配置 DashScope Key | 联系服务端运维 |
+| `Missing Doubao ASR credentials` | 服务端未配置豆包 ASR Key | 联系服务端运维 |
 
 ## 最小伪代码
 
@@ -181,7 +181,7 @@ session = http_post(
             "frame_duration_ms": 20,
         },
         "vad": {"engine": "fsmn", "pre_roll_ms": 200},
-        "asr": {"provider": "dashscope"},
+        "asr": {"provider": "doubao"},
         "intent": {"enabled": True},
     },
 )

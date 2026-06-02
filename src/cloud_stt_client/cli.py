@@ -10,6 +10,7 @@ from cloud_stt_client.config import (
     AudioConfig,
     ClientConfig,
     IntentConfig,
+    RecognitionLogConfig,
     UserSemanticsConfig,
     WakeWordConfig,
 )
@@ -42,6 +43,27 @@ def _add_intent_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--location")
 
 
+def _recognition_log_config_from_args(args: argparse.Namespace) -> RecognitionLogConfig:
+    return RecognitionLogConfig(
+        enabled=not args.disable_recognition_log,
+        directory=str(args.recognition_log_dir),
+    )
+
+
+def _add_recognition_log_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--recognition-log-dir",
+        type=Path,
+        default=Path("logs/client_recognition"),
+        help="Directory for client-side recognition logs written after a stream ends.",
+    )
+    parser.add_argument(
+        "--disable-recognition-log",
+        action="store_true",
+        help="Disable client-side recognition log files.",
+    )
+
+
 async def _stream(args: argparse.Namespace) -> None:
     audio = AudioConfig(
         format=args.audio_format,
@@ -68,6 +90,7 @@ async def _stream(args: argparse.Namespace) -> None:
             interrupt_texts=tuple(args.wake_word_interrupt_texts),
         ),
         intent=_intent_config_from_args(args),
+        recognition_log=_recognition_log_config_from_args(args),
         queue_max_frames=args.queue_max_frames,
     )
     await VoiceSttClient(config).run(
@@ -90,6 +113,7 @@ async def _stream_wav(args: argparse.Namespace) -> None:
         audio=audio,
         asr=AsrConfig(provider=args.asr_provider, hotword_id=args.hotword_id),
         intent=_intent_config_from_args(args),
+        recognition_log=_recognition_log_config_from_args(args),
         queue_max_frames=args.queue_max_frames,
     )
     await VoiceSttClient(config).run_frames(
@@ -125,7 +149,7 @@ def main() -> None:
         action="store_true",
         help="Print client-side end-to-end timing events.",
     )
-    stream_parser.add_argument("--asr-provider", default="dashscope")
+    stream_parser.add_argument("--asr-provider", default="doubao")
     stream_parser.add_argument("--hotword-id")
     stream_parser.add_argument(
         "--wake-word",
@@ -153,6 +177,7 @@ def main() -> None:
         help="Wake-word detector texts that close the active STT stream.",
     )
     _add_intent_args(stream_parser)
+    _add_recognition_log_args(stream_parser)
 
     wav_parser = subparsers.add_parser("stream-wav", help="Stream a PCM WAV file")
     wav_parser.add_argument("wav", type=Path)
@@ -171,9 +196,10 @@ def main() -> None:
         action="store_true",
         help="Print client-side end-to-end timing events.",
     )
-    wav_parser.add_argument("--asr-provider", default="dashscope")
+    wav_parser.add_argument("--asr-provider", default="doubao")
     wav_parser.add_argument("--hotword-id")
     _add_intent_args(wav_parser)
+    _add_recognition_log_args(wav_parser)
     wav_parser.add_argument(
         "--realtime",
         action="store_true",

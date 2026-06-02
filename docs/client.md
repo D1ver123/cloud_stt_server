@@ -12,6 +12,7 @@
 - 唤醒后保持空闲超时窗口，窗口内可多轮识别。
 - 空闲窗口内继续检测本地中断词。
 - 接收服务端 `asr.start`、`stt.partial`、`stt.final`、`error` 事件。
+- 每轮对话结束后在客户端写入 `stt.final` 识别日志。
 
 ## 唤醒词模式
 
@@ -27,6 +28,7 @@
 -> 收到 stt.final 后保持连接
 -> 每次 stt.partial / stt.final 都刷新空闲截止时间
 -> 中断词或连续空闲超时后关闭连接
+-> 写入本轮最终识别结果日志
 -> 回到唤醒监听
 ```
 
@@ -117,12 +119,15 @@ python -m cloud_stt_client.cli stream-wav .\sample.wav `
 {"type":"wake_word.detected","text":"你好小旭"}
 {"type":"wake_word.interrupted","text":"停下"}
 {"type":"client.timing","stage":"first_audio_sent","elapsed_ms":123.45}
+{"type":"client.recognition_log","path":"logs/client_recognition/recognition_...json","result_count":1}
 ```
+
+默认日志目录为 `logs/client_recognition`，每轮关闭的 STT 会话生成一个 JSON 文件，记录该轮所有 `stt.final` 最终识别结果。没有最终识别结果时不会生成空文件。可通过 `--recognition-log-dir` 修改目录，通过 `--disable-recognition-log` 关闭。
 
 服务端事件会原样打印：
 
 ```json
-{"type":"asr.start","provider":"dashscope"}
+{"type":"asr.start","provider":"doubao"}
 {"type":"stt.partial","text":"向前"}
 {"type":"stt.final","text":"向前走","intent":{}}
 {"type":"error","message":"error detail"}

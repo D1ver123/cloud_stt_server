@@ -12,13 +12,13 @@
 - 支持 `pcm_s16le` 和 `opus` 输入。
 - 服务端统一处理 `16kHz mono PCM16`。
 - 使用 FunASR FSMN-VAD 判断语音开始和结束。
-- 使用 DashScope `fun-asr-realtime` 做实时 ASR。
+- 默认使用豆包流式语音识别模型 2.0 做实时 ASR，默认不传 `language`，走中文默认模型能力以覆盖普通话和主流中文方言。
 - 对最终文本进行规则意图解析。
 
 ## 运行
 
 ```bash
-export DASHSCOPE_API_KEY="your_key"
+export DOUBAO_ASR_API_KEY="your_key"
 export CLOUD_STT_HOST="0.0.0.0"
 export CLOUD_STT_PORT="8000"
 python -m cloud_stt_server.app
@@ -44,12 +44,12 @@ curl http://127.0.0.1:8000/health
 -> 初始化 pre-roll 音频缓冲
 -> 初始化 ASR 待发送队列
 -> 初始化 FSMN-VAD
--> 初始化 DashScope ASR provider
+-> 初始化豆包 ASR provider
 -> 接收客户端 binary 音频
 -> 解码为 PCM16
 -> VAD 判断语音起止
 -> 语音段进入 ASR 队列
--> 后台任务发送音频给 DashScope
+-> 后台任务发送音频给豆包 ASR
 -> 返回 asr.start / stt.partial / stt.final / error
 ```
 
@@ -61,11 +61,12 @@ curl http://127.0.0.1:8000/health
 | --- | --- | --- |
 | `CLOUD_STT_HOST` | `0.0.0.0` | 监听地址 |
 | `CLOUD_STT_PORT` | `8000` | 监听端口 |
-| `DASHSCOPE_API_KEY` | 无 | DashScope API Key，必填 |
-| `DASHSCOPE_ASR_MODEL` | `fun-asr-realtime` | ASR 模型 |
-| `DASHSCOPE_ASR_FORMAT` | `pcm` | 发送给 DashScope 的音频格式 |
-| `DASHSCOPE_ASR_SAMPLE_RATE` | `16000` | ASR 采样率 |
-| `DASHSCOPE_ASR_DISFLUENCY_REMOVAL` | `false` | 是否开启顺滑处理 |
+| `DOUBAO_ASR_API_KEY` | 无 | 火山引擎新版控制台 API Key；旧版控制台可用 `DOUBAO_ASR_APP_KEY` + `DOUBAO_ASR_ACCESS_KEY` |
+| `DOUBAO_ASR_RESOURCE_ID` | `volc.seedasr.sauc.duration` | 豆包流式语音识别模型 2.0 小时版；并发版用 `volc.seedasr.sauc.concurrent` |
+| `DOUBAO_ASR_ENDPOINT` | `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async` | 豆包流式 ASR WebSocket 地址 |
+| `DOUBAO_ASR_LANGUAGE` | 未设置 | 默认不传，使用中文默认模型能力，覆盖普通话和主流中文方言 |
+| `DOUBAO_ASR_ENABLE_NONSTREAM` | `true` | 开启二遍识别，提高最终分句准确率 |
+| `DASHSCOPE_API_KEY` | 无 | 可选：仅当 `asr.provider=dashscope` 时使用 |
 | `FSMN_VAD_MODEL` | `iic/speech_fsmn_vad_zh-cn-16k-common-pytorch` | VAD 模型名或本地路径 |
 | `FSMN_VAD_DEVICE` | `cpu` | VAD 推理设备 |
 | `FSMN_VAD_CHUNK_SIZE_MS` | `200` | VAD 流式块大小 |
@@ -97,5 +98,5 @@ location / {
 | `unsupported audio format` | 只支持 `pcm_s16le` 和 `opus` |
 | `only 16000 Hz audio is supported` | 当前服务端只接收 16kHz |
 | `only mono audio is supported` | 当前服务端只接收单声道 |
-| `Missing required environment variable: DASHSCOPE_API_KEY` | 服务端未配置 DashScope Key |
+| `Missing Doubao ASR credentials` | 服务端未配置豆包 ASR Key |
 | `audio chunk queue is full` | ASR 发送阻塞，服务端等待队列已满 |

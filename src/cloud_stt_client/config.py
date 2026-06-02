@@ -28,7 +28,7 @@ class VadConfig:
 
 @dataclass(frozen=True)
 class AsrConfig:
-    provider: str = "dashscope"
+    provider: str = "doubao"
     hotword_id: str | None = None
 
 
@@ -63,6 +63,13 @@ class IntentConfig:
 
 
 @dataclass(frozen=True)
+class RecognitionLogConfig:
+    enabled: bool = True
+    directory: str = "logs/client_recognition"
+    write_empty: bool = False
+
+
+@dataclass(frozen=True)
 class ClientConfig:
     rest_base_url: str = "http://127.0.0.1:8000"
     websocket_url: str | None = None
@@ -71,5 +78,6 @@ class ClientConfig:
     asr: AsrConfig = AsrConfig()
     wake_word: WakeWordConfig = WakeWordConfig()
     intent: IntentConfig = IntentConfig()
+    recognition_log: RecognitionLogConfig = RecognitionLogConfig()
     queue_max_frames: int = 200
     send_commit_on_stop: bool = True

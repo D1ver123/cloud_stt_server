@@ -124,7 +124,7 @@ def create_session(args: argparse.Namespace) -> dict:
             "pre_roll_ms": 200,
         },
         "asr": {
-            "provider": "dashscope",
+            "provider": "doubao",
         },
         "intent": {
             "enabled": True,

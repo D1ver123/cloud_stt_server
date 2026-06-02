@@ -18,7 +18,7 @@ class VadParams(BaseModel):
 
 
 class AsrParams(BaseModel):
-    provider: str = "dashscope"
+    provider: str = "doubao"
     hotword_id: str | None = None
 
 

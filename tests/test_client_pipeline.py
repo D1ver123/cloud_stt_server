@@ -1,10 +1,12 @@
 import asyncio
+from pathlib import Path
 import time
 
-from cloud_stt_client.config import ClientConfig, WakeWordConfig
+from cloud_stt_client.config import ClientConfig, RecognitionLogConfig, WakeWordConfig
 import cloud_stt_client.pipeline as pipeline
 from cloud_stt_client.pipeline import VoiceSttClient
 from cloud_stt_client.protocol import SttSession
+from cloud_stt_client.recognition_log import ConversationRecognitionLog
 
 
 class FakeEventSocket:
@@ -88,6 +90,74 @@ def test_receive_events_reports_stt_activity():
         )
 
         assert activity_count == 2
+
+    asyncio.run(run_scenario())
+
+
+def test_receive_events_records_final_results_for_client_log(tmp_path):
+    async def run_scenario():
+        client = VoiceSttClient(ClientConfig())
+        stop_event = asyncio.Event()
+        recognition_log = ConversationRecognitionLog(tmp_path, "stt_test")
+
+        await client._receive_events(
+            FakeEventSocket(
+                [
+                    {"type": "stt.partial", "text": "he"},
+                    {"type": "stt.final", "text": "hello", "intent": {"ok": True}},
+                ]
+            ),
+            None,
+            stop_event,
+            None,
+            time.perf_counter(),
+            {},
+            stop_on_final=False,
+            on_final=None,
+            recognition_log=recognition_log,
+        )
+
+        path = recognition_log.write()
+
+        assert path is not None
+        assert path.exists()
+        assert '"result_count": 1' in path.read_text(encoding="utf-8")
+        assert '"text": "hello"' in path.read_text(encoding="utf-8")
+
+    asyncio.run(run_scenario())
+
+
+def test_finish_writes_recognition_log_and_emits_path(tmp_path):
+    class FakeWebSocket:
+        async def commit(self):
+            pass
+
+    async def run_scenario():
+        client = VoiceSttClient(
+            ClientConfig(
+                recognition_log=RecognitionLogConfig(directory=str(tmp_path)),
+            )
+        )
+        recognition_log = client._create_recognition_log("stt_test")
+        recognition_log.record_final({"type": "stt.final", "text": "hello"})
+        events = []
+        event_task = asyncio.create_task(asyncio.sleep(0))
+
+        await client._finish(
+            FakeWebSocket(),
+            event_task,
+            None,
+            time.perf_counter(),
+            on_event=events.append,
+            recognition_log=recognition_log,
+        )
+
+        log_events = [
+            event for event in events if event.get("type") == "client.recognition_log"
+        ]
+        assert len(log_events) == 1
+        assert log_events[0]["result_count"] == 1
+        assert tmp_path.joinpath(Path(log_events[0]["path"]).name).exists()
 
     asyncio.run(run_scenario())
 

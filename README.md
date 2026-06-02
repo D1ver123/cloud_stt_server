@@ -3,7 +3,7 @@
 `cloud-stt` 是一套面向机器人语音交互的实时语音转文字服务。项目分为客户端和服务端：
 
 - 客户端：本地麦克风采集、设备选择、音频格式转换、本地唤醒词检测、Opus/PCM 推流、WebSocket 事件接收。
-- 服务端：STT 会话管理、WebSocket 音频接收、Opus/PCM 解码、FSMN-VAD、DashScope 实时 ASR、最终文本意图解析。
+- 服务端：STT 会话管理、WebSocket 音频接收、Opus/PCM 解码、FSMN-VAD、豆包流式语音识别模型 2.0、最终文本意图解析。
 
 ## 当前工作流程
 
@@ -14,10 +14,11 @@
 -> 建立 WebSocket
 -> 进入空闲超时窗口，默认 60 秒
 -> 音频同时上传服务端并继续喂给本地小模型
--> 服务端 VAD + DashScope ASR 返回 stt.partial / stt.final
+-> 服务端 VAD + 豆包流式 ASR 返回 stt.partial / stt.final
 -> 每次 stt.partial / stt.final 都刷新空闲截止时间
 -> 空闲窗口内允许多轮识别，不需要重复唤醒
 -> 本地检测到 退出/停下/停止/结束，或连续 60 秒没有识别活动
+-> 客户端写入本轮 stt.final 识别日志
 -> 关闭本轮 WebSocket，回到本地唤醒监听
 ```
 
@@ -72,10 +73,10 @@ $env:CLOUD_STT_OPUS_LIB="D:\path\to\opus.dll"
 
 ## 服务端启动
 
-服务端需要配置 DashScope API Key：
+服务端默认使用豆包流式语音识别模型 2.0，需要配置火山引擎豆包 ASR Key：
 
 ```bash
-export DASHSCOPE_API_KEY="your_key"
+export DOUBAO_ASR_API_KEY="your_key"
 export CLOUD_STT_HOST="0.0.0.0"
 export CLOUD_STT_PORT="8000"
 python -m cloud_stt_server.app
@@ -132,7 +133,7 @@ python -m cloud_stt_client.cli stream-wav .\sample.wav `
 服务端会通过 WebSocket text JSON 返回事件：
 
 ```json
-{"type":"asr.start","provider":"dashscope"}
+{"type":"asr.start","provider":"doubao"}
 {"type":"stt.partial","text":"向前"}
 {"type":"stt.final","text":"向前走","intent":{}}
 {"type":"error","message":"error detail"}
@@ -144,7 +145,10 @@ python -m cloud_stt_client.cli stream-wav .\sample.wav `
 {"type":"wake_word.detected","text":"你好小旭"}
 {"type":"wake_word.interrupted","text":"停下"}
 {"type":"client.timing","stage":"wake_word_idle_timeout","elapsed_ms":60000.0}
+{"type":"client.recognition_log","path":"logs/client_recognition/recognition_...json","result_count":1}
 ```
+
+客户端默认在每轮 STT 会话结束后，把本轮所有 `stt.final` 最终识别结果写入 `logs/client_recognition/recognition_*.json`。如果没有最终识别结果，不生成空日志。
 
 ## 配置
 
@@ -154,8 +158,11 @@ python -m cloud_stt_client.cli stream-wav .\sample.wav `
 | --- | --- | --- |
 | `CLOUD_STT_HOST` | `0.0.0.0` | 服务监听地址 |
 | `CLOUD_STT_PORT` | `8000` | 服务监听端口 |
-| `DASHSCOPE_API_KEY` | 无 | DashScope API Key，必填 |
-| `DASHSCOPE_ASR_MODEL` | `fun-asr-realtime` | DashScope 实时 ASR 模型 |
+| `DOUBAO_ASR_API_KEY` | 无 | 火山引擎新版控制台 API Key；也可用 `DOUBAO_ASR_APP_KEY` + `DOUBAO_ASR_ACCESS_KEY` |
+| `DOUBAO_ASR_RESOURCE_ID` | `volc.seedasr.sauc.duration` | 豆包流式语音识别模型 2.0 小时版；并发版用 `volc.seedasr.sauc.concurrent` |
+| `DOUBAO_ASR_LANGUAGE` | 未设置 | 默认不传，使用中文默认模型能力，覆盖普通话和主流中文方言 |
+| `DOUBAO_ASR_ENABLE_NONSTREAM` | `true` | 开启二遍识别，提升分句最终结果质量 |
+| `DASHSCOPE_API_KEY` | 无 | 可选：仅当 `asr.provider=dashscope` 时使用 |
 | `FSMN_VAD_MODEL` | `iic/speech_fsmn_vad_zh-cn-16k-common-pytorch` | FSMN-VAD 模型名或本地路径 |
 
 客户端常用参数：
@@ -169,6 +176,8 @@ python -m cloud_stt_client.cli stream-wav .\sample.wav `
 | `--wake-word-interrupt-texts` | 本地中断词，默认 `退出 停下 停止 结束` |
 | `--audio-format` | `pcm_s16le` 或 `opus` |
 | `--timing` | 输出客户端耗时事件 |
+| `--recognition-log-dir` | 客户端识别日志目录，默认 `logs/client_recognition` |
+| `--disable-recognition-log` | 关闭客户端识别日志 |
 
 ## 机器人端接入
 

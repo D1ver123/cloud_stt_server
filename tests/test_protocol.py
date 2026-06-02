@@ -8,6 +8,7 @@ from cloud_stt_client.config import (
     VadConfig,
 )
 from cloud_stt_client.protocol import RestSessionClient, SttSession
+from cloud_stt_client.protocol import _websocket_connect_kwargs
 from cloud_stt_client.protocol import websocket_url_with_session
 
 
@@ -85,3 +86,25 @@ def test_rest_session_payload_includes_intent_parameters(monkeypatch):
         "current_time": "星期二 2026-05-26 10:00:00",
         "location": "苏州",
     }
+
+
+def test_websocket_connect_kwargs_disable_proxy_when_supported():
+    class FakeWebsockets:
+        @staticmethod
+        def connect(uri, proxy=None):
+            pass
+
+    kwargs = _websocket_connect_kwargs(FakeWebsockets)
+
+    assert kwargs["proxy"] is None
+
+
+def test_websocket_connect_kwargs_support_old_websockets_without_proxy_arg():
+    class FakeWebsockets:
+        @staticmethod
+        def connect(uri):
+            pass
+
+    kwargs = _websocket_connect_kwargs(FakeWebsockets)
+
+    assert "proxy" not in kwargs

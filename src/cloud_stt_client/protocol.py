@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator
 import contextlib
 from dataclasses import dataclass
+import inspect
 import json
 import urllib.error
 import urllib.parse
@@ -96,11 +97,7 @@ class SttWebSocketClient:
 
         self.websocket = await websockets.connect(
             self.websocket_url,
-            ping_interval=20,
-            ping_timeout=20,
-            close_timeout=10,
-            max_size=10 * 1024 * 1024,
-            compression=None,
+            **_websocket_connect_kwargs(websockets),
         )
         return self
 
@@ -163,3 +160,16 @@ def _is_websocket_closed(exc: Exception) -> bool:
     except ImportError:
         return False
     return isinstance(exc, websockets.ConnectionClosed)
+
+
+def _websocket_connect_kwargs(websockets) -> dict:
+    kwargs = {
+        "ping_interval": 20,
+        "ping_timeout": 20,
+        "close_timeout": 10,
+        "max_size": 10 * 1024 * 1024,
+        "compression": None,
+    }
+    if "proxy" in inspect.signature(websockets.connect).parameters:
+        kwargs["proxy"] = None
+    return kwargs
